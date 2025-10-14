@@ -16,7 +16,7 @@ export default function Chatbot() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Initialize session ID and welcome message
+  // ✅ Initialize session ID and welcome message
   useEffect(() => {
     const storedSessionId = localStorage.getItem("chatbot_session_id");
     if (storedSessionId) {
@@ -27,7 +27,6 @@ export default function Chatbot() {
       setSessionId(newSessionId);
     }
 
-    // Add welcome message
     setMessages([
       {
         id: "welcome",
@@ -38,38 +37,31 @@ export default function Chatbot() {
     ]);
   }, []);
 
-  // Auto-scroll to bottom when messages change
+  // ✅ Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const extractMessageContent = (response: any): string => {
-    // Priority order for extracting message content
-    if (typeof response === "string") {
-      return response;
-    }
-
+    if (typeof response === "string") return response;
     if (response.output) return response.output;
     if (response.message) return response.message;
     if (response.data?.message) return response.data.message;
     if (response.result?.message) return response.result.message;
     if (response.choices?.[0]?.message?.content)
       return response.choices[0].message.content;
-
     return "No recibí contenido para mostrar.";
   };
 
+  // ✅ Send message directly to n8n webhook
   const sendMessage = async () => {
     const trimmedMessage = inputValue.trim();
-
     if (!trimmedMessage || isLoading) return;
-
     if (trimmedMessage.length > 2000) {
       alert("El mensaje no puede superar los 2000 caracteres.");
       return;
     }
 
-    // Add user message
     const userMessage: Message = {
       id: `user-${Date.now()}`,
       text: trimmedMessage,
@@ -81,39 +73,39 @@ export default function Chatbot() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/chat-proxy", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message: trimmedMessage,
-          timestamp: new Date().toISOString(),
-          dashboard_context: "misecretaria_site",
-          user_session: sessionId,
-        }),
-      });
+      // ✅ POST directly to your n8n webhook
+      const response = await fetch(
+        "https://n8n.misecretaria.com.ar/webhook-test/bca45910-f291-4db6-bc4a-f5cd87e6f665/chatbot",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            message: trimmedMessage,
+            timestamp: new Date().toISOString(),
+            user_session: sessionId,
+            dashboard_context: "misecretaria_site",
+          }),
+        }
+      );
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
+      const agentText = extractMessageContent(data);
 
       const agentMessage: Message = {
         id: `agent-${Date.now()}`,
-        text: extractMessageContent(data),
+        text: agentText,
         sender: "agent",
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, agentMessage]);
     } catch (error) {
       console.error("Error sending message:", error);
-
       const errorMessage: Message = {
         id: `error-${Date.now()}`,
         text: "No pude obtener respuesta del agente. Reintentá o probá más tarde.",
@@ -121,14 +113,6 @@ export default function Chatbot() {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
-
-      // Log error details in dev mode
-      if (import.meta.env.DEV) {
-        console.log("Error details:", {
-          error,
-          message: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
     } finally {
       setIsLoading(false);
     }
