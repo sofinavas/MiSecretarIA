@@ -75,7 +75,7 @@ export default function Chatbot() {
     try {
       // ✅ POST directly to your n8n webhook
       const response = await fetch(
-        "https://n8n.misecretaria.com.ar/webhook-test/bca45910-f291-4db6-bc4a-f5cd87e6f665/chatbot",
+        "https://n8n.misecretaria.com.ar/webhook/bca45910-f291-4db6-bc4a-f5cd87e6f665/chatbot",
         {
           method: "POST",
           headers: {
